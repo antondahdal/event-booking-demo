@@ -25,8 +25,17 @@ h1, h2, h3 { font-family: Fraunces, serif; font-weight: 560; letter-spacing: -0.
 .top {
   display: flex;
   align-items: center;
+  flex-wrap: wrap;
   gap: 22px;
   margin-bottom: 18px;
+}
+.subject {
+  flex-basis: 100%;
+  margin: 0;
+  color: var(--copper);
+  font-family: Fraunces, serif;
+  font-size: 1.55rem;
+  letter-spacing: -0.03em;
 }
 .mark { font-family: Fraunces, serif; font-size: 1.35rem; }
 .nav { display: flex; gap: 16px; color: var(--muted); }
