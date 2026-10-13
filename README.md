@@ -1,7 +1,24 @@
-# Event Booking demo
+# Event Booking front end
 
-A small front end for interviewers. It runs in the browser and shows which service method runs on sign-in and on Book.
+The browser talks only to the gateway on port **8081**.
 
-The Spring services are not called from this page yet. Week 9 points it at the gateway.
+Sign in, the show list, Book, and My tickets call the real API.
+The side panel names the service method for that click.
 
-Open `index.html`, or serve the folder and use the hosted link.
+Register saves an attendee and does not return a token.
+Book needs a signed-in attendee.
+The token stays in this browser. Auth does not store it.
+
+## Run
+
+Start auth (8082), event (8083), booking (8080), and the gateway (8081) first.
+
+Serve this folder on port **3000**. The API allows that origin only.
+
+```powershell
+python -m http.server 3000
+```
+
+Open [http://localhost:3000](http://localhost:3000).
+
+A `file://` page cannot call the gateway.
