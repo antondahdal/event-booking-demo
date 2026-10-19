@@ -21,4 +21,6 @@ python -m http.server 3000
 
 Open [http://localhost:3000](http://localhost:3000).
 
+A hosted copy of this folder uses `js/config.js`. On localhost the page calls `http://localhost:8081`. Anywhere else it calls `window.BOOKING_API_PUBLIC`.
+
 A `file://` page cannot call the gateway.

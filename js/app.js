@@ -1,4 +1,4 @@
-const API = "http://localhost:8081";
+const API = window.BOOKING_API || "http://localhost:8081";
 
 const SERVICES = [
   { id: "gateway", name: "Gateway", job: "The only door" },
@@ -30,6 +30,7 @@ let authMode = "login";
 let lit = [];
 let trace = [];
 let generation = 0;
+let bookingBusy = false;
 
 localStorage.removeItem("eb-demo");
 
@@ -84,6 +85,7 @@ function messageOf(err) {
   if (!err || err.status === 0) {
     return "The gateway on port 8081 did not answer. Start auth, event, booking, and the gateway. Open this page at http://localhost:3000.";
   }
+  if (err.status === 429) return "The gate is empty. Wait for a token, then Book again.";
   if (err.status === 401) return err.detail || "Sign in again. That token is not valid.";
   if (err.status === 403) return "This account cannot do that. Book is for an attendee.";
   return err.detail || "The request failed.";
@@ -268,7 +270,7 @@ function viewEvent() {
       ? "Book is for an attendee. This account is " + state.user.role + "."
       : left < 1
         ? "Sold out."
-        : "The gateway forwards this. Event takes the seats. Booking writes the ticket.";
+        : "One click id for this tap. A retry of the same tap is the same ticket.";
 
   return `
     <section class="detail">
@@ -337,13 +339,15 @@ function viewTickets() {
 
 function viewHow() {
   const rows = [
+    ["This browser", "crypto.randomUUID", "One click id for this tap. A retry sends that same id"],
     ["Gateway", "GatewayRouteConfig", "Forwards POST /api/events/{id}/bookings"],
     ["Booking", "BookingController.book", "Calls BookingService.book"],
+    ["Booking", "BookingService.book", "Same click id already saved returns that ticket"],
     ["Booking", "AuthClient.checkIfExist", "GET /api/users/me"],
     ["Auth", "AuthService.checkIfExist", "Returns the user id"],
-    ["Booking", "EventClient.reserveSeats", "POST seat-reservations"],
-    ["Event", "EventService.reserveSeats", "Locks the row, saves a 10-minute hold"],
-    ["Booking", "BookingWriter.writeBook", "One commit: ticket and two outbox rows"]
+    ["Booking", "EventClient.reserveSeats", "POST seat-reservations with the click id"],
+    ["Event", "EventService.reserveSeats", "Locks the row. Same click id does not take another seat"],
+    ["Booking", "BookingWriter.writeBook", "One commit: ticket, click id, and two outbox rows"]
   ];
   return `
     <section class="hero">
@@ -530,9 +534,16 @@ async function submitAuth(email, password) {
   }
 }
 
+async function postBook(event, clickId) {
+  return api("/api/events/" + event.id + "/bookings", {
+    method: "POST",
+    body: { seats: seatsWanted, clickId }
+  });
+}
+
 async function doBook() {
   const event = currentEvent();
-  if (!event) return;
+  if (!event || bookingBusy) return;
   if (!state.user) {
     setRoute("auth");
     return;
@@ -548,25 +559,35 @@ async function doBook() {
     return;
   }
 
+  const clickId = crypto.randomUUID();
+  bookingBusy = true;
   state.loading = true;
   state.error = "";
   state.notice = "";
   render();
   try {
-    const result = await api("/api/events/" + event.id + "/bookings", {
-      method: "POST",
-      body: { seats: seatsWanted }
-    });
+    let result;
+    let retried = false;
+    try {
+      result = await postBook(event, clickId);
+    } catch (err) {
+      if (err.status !== 0 && err.status !== 502 && err.status !== 503) throw err;
+      retried = true;
+      result = await postBook(event, clickId);
+    }
+    const ticketId = result.data && result.data.id;
     await play([
       { service: "gateway", who: "Gateway", method: "POST /api/events/" + event.id + "/bookings — " + result.status },
-      { service: "booking", who: "Booking", method: "BookingController.book" },
+      { service: "booking", who: "Booking", method: "BookingController.book — click id " + clickId },
       { service: "booking", who: "Booking", method: "BookingService.book" },
       { service: "auth", who: "Auth", method: "AuthClient.checkIfExist → AuthService.checkIfExist" },
-      { service: "event", who: "Event", method: "EventClient.reserveSeats → EventService.reserveSeats" },
-      { service: "booking", who: "Booking", method: "BookingWriter.writeBook — ticket " + (result.data && result.data.id) },
+      { service: "event", who: "Event", method: retried
+        ? "Same click id. Event did not take a second seat."
+        : "EventClient.reserveSeats → EventService.reserveSeats" },
+      { service: "booking", who: "Booking", method: "BookingWriter.writeBook — ticket " + ticketId },
       { service: "gateway", who: "Correlation", method: result.correlation }
     ]);
-    state.notice = "Ticket saved.";
+    state.notice = retried ? "Same tap. One ticket." : "Ticket saved.";
     await loadCatalog();
     await ensureEvent();
   } catch (err) {
@@ -578,6 +599,7 @@ async function doBook() {
     failTrace(err, service, service === "event" ? "Event" : "Booking");
     state.error = messageOf(err);
   } finally {
+    bookingBusy = false;
     state.loading = false;
     render();
   }
