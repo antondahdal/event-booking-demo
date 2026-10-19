@@ -1,4 +1,4 @@
-const API = window.BOOKING_API || "http://localhost:8081";
+const API = window.BOOKING_API;
 
 const SERVICES = [
   { id: "gateway", name: "Gateway", job: "The only door" },
@@ -193,6 +193,14 @@ function render() {
   bind();
 }
 
+function gatewayHost() {
+  try {
+    return new URL(API).host;
+  } catch (e) {
+    return "gateway";
+  }
+}
+
 function banner() {
   if (location.protocol === "file:") {
     return `<p class="banner bad">Open <a href="http://localhost:3000">http://localhost:3000</a>. A file page cannot call the gateway.</p>`;
@@ -246,7 +254,7 @@ function viewShows() {
 
   return `
     <section class="hero">
-      <p class="kicker">Gateway · port 8081</p>
+      <p class="kicker">Gateway · ${esc(gatewayHost())}</p>
       <h1>Shows</h1>
       <p>The browser talks only to the gateway. Booking is the only service that calls the others.</p>
     </section>

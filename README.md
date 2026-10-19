@@ -1,6 +1,6 @@
 # Event Booking front end
 
-The browser talks only to the gateway on port **8081**.
+The browser talks only to the gateway. The address comes from `js/config.js`.
 
 Sign in, the show list, Book, and My tickets call the real API.
 The side panel names the service method for that click.
@@ -21,6 +21,6 @@ python -m http.server 3000
 
 Open [http://localhost:3000](http://localhost:3000).
 
-A hosted copy of this folder uses `js/config.js`. On localhost the page calls `http://localhost:8081`. Anywhere else it calls `window.BOOKING_API_PUBLIC`.
+A hosted copy calls the public gateway. On this machine, open the page with `?api=` set to the local gateway address, or set `window.BOOKING_API_LOCAL` before `js/config.js`.
 
 A `file://` page cannot call the gateway.
