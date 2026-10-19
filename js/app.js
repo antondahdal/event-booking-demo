@@ -83,7 +83,7 @@ function saveToken(token) {
 
 function messageOf(err) {
   if (!err || err.status === 0) {
-    return "The gateway on port 8081 did not answer. Start auth, event, booking, and the gateway. Open this page at http://localhost:3000.";
+    return "Failed to call the gateway.";
   }
   if (err.status === 429) return "The gate is empty. Wait for a token, then Book again.";
   if (err.status === 401) return err.detail || "Sign in again. That token is not valid.";
